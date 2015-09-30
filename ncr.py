@@ -21,32 +21,19 @@ import serial, time
     
 class ThermalPrinter(object):
     """ 
+        Thermal printing library that controls the NCR 7198 Thermal Line printer
         
-        Thermal printing library that controls the "micro panel thermal printer" sold in
-        shops like Adafruit and Sparkfun (e.g. http://www.adafruit.com/products/597). 
-        Mostly ported from Ladyada's Arduino library 
-        (https://github.com/adafruit/Adafruit-Thermal-Printer-Library) to run on
-        BeagleBone and Raspberry Pi.
+        Currently handles printing text. Working on the correct commands for images
+        
+        Thanks to Lauri Kainulainen for the initial library for controlling another
+        thermal printer.
 
-        Currently handles printing image data and text, but the rest of the
-        built-in functionality like underlining and barcodes are trivial
-        to port to Python when needed.
-
-        If on BeagleBone or similar device, remember to set the mux settings
-        or change the UART you are using. See the beginning of this file for
-        default setup.
-
-        Thanks to Matt Richardson for the initial pointers on controlling the
-        device via Python.
-
-        @author: Lauri Kainulainen 
+        @author: Bjørn Gustav Baklid
 
     """
 
-    # default serial port for the Beagle Bone
-    #SERIALPORT = '/dev/ttyO2'
-    # this might work better on a Raspberry Pi
-    SERIALPORT = '/dev/ttyAMA0'
+    # Default serialport should be set depending on OS.
+    SERIALPORT = 'COM4'
 
     BAUDRATE = 19200
     TIMEOUT = 3
@@ -60,52 +47,29 @@ class ThermalPrinter(object):
     printer = None
 
     _ESC = chr(27)
+    _GS = chr(29)
 
-    # These values (including printDensity and printBreaktime) are taken from 
-    # lazyatom's Adafruit-Thermal-Library branch and seem to work nicely with bitmap 
-    # images. Changes here can cause symptoms like images printing out as random text. 
-    # Play freely, but remember the working values.
-    # https://github.com/adafruit/Adafruit-Thermal-Printer-Library/blob/0cc508a9566240e5e5bac0fa28714722875cae69/Thermal.cpp
-    
-    # Set "max heating dots", "heating time", "heating interval"
-    # n1 = 0-255 Max printing dots, Unit (8dots), Default: 7 (64 dots)
-    # n2 = 3-255 Heating time, Unit (10us), Default: 80 (800us)
-    # n3 = 0-255 Heating interval, Unit (10us), Default: 2 (20us)
-    # The more max heating dots, the more peak current will cost
-    # when printing, the faster printing speed. The max heating
-    # dots is 8*(n1+1). The more heating time, the more density,
-    # but the slower printing speed. If heating time is too short,
-    # blank page may occur. The more heating interval, the more
-    # clear, but the slower printing speed.
-    
-    def __init__(self, heatTime=80, heatInterval=2, heatingDots=7, serialport=SERIALPORT):
+    # Initializing the printer    
+    def __init__(self, serialport=SERIALPORT):
         self.printer = serial.Serial(serialport, self.BAUDRATE, timeout=self.TIMEOUT)
         self.printer.write(self._ESC) # ESC - command
         self.printer.write(chr(64)) # @   - initialize
-        self.printer.write(self._ESC) # ESC - command
-        self.printer.write(chr(55)) # 7   - print settings
-        self.printer.write(chr(heatingDots))  # Heating dots (20=balance of darkness vs no jams) default = 20
-        self.printer.write(chr(heatTime)) # heatTime Library default = 255 (max)
-        self.printer.write(chr(heatInterval)) # Heat interval (500 uS = slower, but darker) default = 250
-
-        # Description of print density from page 23 of the manual:
-        # DC2 # n Set printing density
-        # Decimal: 18 35 n
-        # D4..D0 of n is used to set the printing density. Density is 50% + 5% * n(D4-D0) printing density.
-        # D7..D5 of n is used to set the printing break time. Break time is n(D7-D5)*250us.
-        printDensity = 15 # 120% (? can go higher, text is darker but fuzzy)
-        printBreakTime = 15 # 500 uS
-        self.printer.write(chr(18))
-        self.printer.write(chr(35))
-        self.printer.write(chr((printDensity << 4) | printBreakTime))
 
     def reset(self):
         self.printer.write(self._ESC)
         self.printer.write(chr(64))
 
-    def linefeed(self):
-        self.printer.write(chr(10))
-
+    def linefeed(self, lines=1):
+        while lines > 1:
+            self.printer.write(chr(10))
+            lines -= 1
+		
+		
+    def fullcut(self):
+        self.printer.write(self._ESC)
+        self.printer.write(chr(105))
+        self.printer.write(chr(0))
+	
     def justify(self, align="L"):
         pos = 0
         if align == "L":
@@ -352,61 +316,4 @@ class ThermalPrinter(object):
             test_print = open('print-output.png', 'wb')
             test_img.save(test_print, 'PNG')
             print "output saved to %s" % test_print.name
-            test_print.close()           
-
-
-
-if __name__ == '__main__':
-    import sys, os
-
-    if len(sys.argv) == 2:
-        serialport = sys.argv[1]
-    else:
-        serialport = ThermalPrinter.SERIALPORT
-
-    if not os.path.exists(serialport):
-        sys.exit("ERROR: Serial port not found at: %s" % serialport)
-
-    print "Testing printer on port %s" % serialport
-    p = ThermalPrinter(serialport=serialport)
-    p.print_text("\nHello maailma. How's it going?\n")
-    p.print_text("Part of this ")
-    p.bold_on()
-    p.print_text("line is bold\n")
-    p.bold_off()
-    p.print_text("Part of this ")
-    p.font_b_on()
-    p.print_text("line is fontB\n")
-    p.font_b_off()
-    p.justify("R")
-    p.print_text("right justified\n")
-    p.justify("C")
-    p.print_text("centered\n")
-    p.justify() # justify("L") works too
-    p.print_text("left justified\n")
-    p.upsidedown_on()
-    p.print_text("upside down\n")
-    p.upsidedown_off()
-
-    markup = """bl bold left
-ur underline right
-fc font b centred (next line blank)
-nl
-il inverse left
-"""
-    p.print_markup(markup)
-
-    # runtime dependency on Python Imaging Library
-    import Image, ImageDraw
-    i = Image.open("example-lammas.png")
-    data = list(i.getdata())
-    w, h = i.size
-    p.print_bitmap(data, w, h, True)
-    p.linefeed()
-    p.justify("C")
-    p.barcode_chr("2")
-    p.barcode("014633098808")
-    p.linefeed()
-    p.linefeed()
-    p.linefeed()
-    
+            test_print.close()
