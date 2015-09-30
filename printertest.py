@@ -31,17 +31,19 @@ il inverse left
 """
     p.print_markup(markup)
 
+# Image not working at the moment
     # runtime dependency on Python Imaging Library
-    import Image, ImageDraw
-    i = Image.open("example-lammas.png")
-    data = list(i.getdata())
-    w, h = i.size
-    p.print_bitmap(data, w, h, True)
+#    import Image, ImageDraw
+#    i = Image.open("example-lammas.png")
+#    data = list(i.getdata())
+#    w, h = i.size
+#    p.print_bitmap(data, w, h, True)
     p.linefeed()
     p.justify("C")
     p.barcode_chr("2")
     p.barcode("014633098808")
-    p.linefeed()
-    p.linefeed()
-    p.linefeed()
+    p.linefeed(8)
+    p.fullcut()
     
+# Run the script    
+__main__()
