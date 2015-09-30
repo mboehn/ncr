@@ -64,7 +64,7 @@ class ThermalPrinter(object):
         self.printer.write(chr(116))
 
     def linefeed(self, lines=1):
-        self.printer.write(
+        self.printer.write(chr(20))
         self.printer.write(chr(lines))
 
     def fullcut(self):
