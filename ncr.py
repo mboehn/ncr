@@ -57,25 +57,24 @@ class ThermalPrinter(object):
 
     def reset(self):
         self.printer.write(chr(16))
-        #self.printer.write(self._ESC)
-        #self.printer.write(chr(64))
-    def  printtest(self):
+        
+    # Print the configuration page
+    def printtest(self):
         self.printer.write(chr(31))
         self.printer.write(chr(116))
-
+    
+    # Feed n lines
     def linefeed(self, lines=1):
         self.printer.write(chr(20))
         self.printer.write(chr(lines))
 
     def fullcut(self):
         self.printer.write(chr(25))
-        #self.printer.write(self._ESC)
-        #self.printer.write(chr(105))
-        #self.printer.write(chr(0))
-    
+
+    # No difference from full cut.
     def partialcut(self):
         self.printer.write(chr(26))
-	
+
     def justify(self, align="L"):
         pos = 0
         if align == "L":
